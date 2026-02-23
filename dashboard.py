@@ -4,7 +4,7 @@ from openai import OpenAI
 
 app = Flask(__name__)
 
-# --- LEGENDS AI V11.3 CORE (AYARLAR MENÜSÜ AKTİF) ---
+# --- LEGENDS AI V11.4 CORE (GÜNCELLE BUTONU VE KURULUM REHBERİ) ---
 API_KEYS = [
     "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",
     "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",
@@ -20,7 +20,9 @@ API_KEYS = [
 
 current_key_index = 0
 MODEL = "llama-3.3-70b-versatile"
-SYSTEM_PROMPT = "Sen Legends AI'sın. Şenol'un baş yazılım mimarısın. 1) Sadece kod yaz. 2) Asla yarıda kesme. 3) Tek HTML dosyasında kusursuz iş çıkar."
+
+# YENİ SİSTEM KOMUTU: AI'A NASIL KURULACAĞINI ANLATMASINI EMRETTİK
+SYSTEM_PROMPT = "Sen Legends AI'sın. Şenol'un baş yazılım mimarısın. 1) Sadece kod yaz. 2) Asla yarıda kesme. 3) Tek HTML dosyasında kusursuz iş çıkar. 4) Yazdığın kodların en altına, bu kodun nasıl kurulacağını ve çalıştırılacağını (adım adım) kısaca açıkla."
 
 @app.route('/manifest.json')
 def manifest():
@@ -84,14 +86,16 @@ HTML_TEMPLATE = """
         .action-item { display: flex; align-items: center; gap: 10px; padding: 12px; color: white; cursor: pointer; border-radius: 10px; font-size: 14px; transition: 0.2s; }
         .action-item:hover { background: rgba(249, 115, 22, 0.2); color: var(--primary); }
 
-        /* KOD BLOKLARI DÜZELTİLDİ */
         pre { background: #000 !important; border-radius: 16px; padding: 45px 14px 14px 14px; margin: 15px 0; border: 1px solid rgba(255,255,255,0.1); position: relative; max-width: 100%; overflow-x: auto; }
         code { font-family: 'Fira Code', monospace; font-size: 13px; white-space: pre; }
         .code-actions { position: absolute; top: 10px; right: 10px; display: flex; gap: 8px; z-index: 10; }
         .code-btn { background: rgba(255,255,255,0.15); border:none; color: white; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px; backdrop-filter: blur(5px); transition: 0.2s; }
         .code-btn:hover { background: var(--primary); }
         
-        /* MODAL ORTAK STİLİ (ÖNİZLEME ve AYARLAR) */
+        /* GÜNCELLE BUTONU ÖZEL RENK */
+        .btn-update { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .btn-update:hover { background: #3b82f6; color: white; }
+
         .modal-container { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 300; justify-content: center; align-items: center; padding: 20px; }
         .modal-container.show { display: flex; animation: fadeIn 0.2s ease; }
         .modal-box { width: 100%; max-width: 500px; max-height: 90vh; display: flex; flex-direction: column; border-radius: 24px; overflow: hidden; }
@@ -101,7 +105,6 @@ HTML_TEMPLATE = """
 
         #previewFrame { flex: 1; width: 100%; background: #fff; border: none; min-height: 400px; }
 
-        /* AYARLAR MENÜSÜ STİLİ */
         .settings-content { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
         .setting-item label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 8px; font-weight: bold; }
         .setting-input { width: 100%; padding: 12px; border-radius: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; outline: none; }
@@ -182,14 +185,12 @@ HTML_TEMPLATE = """
             <div class="settings-content">
                 <div class="setting-item">
                     <label>Yapay Zeka Modeli (Motor)</label>
-                    <select class="setting-input" disabled>
-                        <option>Llama 3.3 70B (V10 Motor - Aktif)</option>
-                    </select>
+                    <select class="setting-input" disabled><option>Llama 3.3 70B (V10 Motor - Aktif)</option></select>
                 </div>
                  <div class="setting-item">
                     <label class="flex justify-between"><span>Yaratıcılık Seviyesi (Temperature)</span> <span id="tempValue" class="text-orange-500">0.2</span></label>
                     <input type="range" id="tempRange" min="0" max="1" step="0.1" value="0.2">
-                    <div class="flex justify-between text-xs text-gray-500 mt-1"><span>Mantıklı (0.0)</span><span>Dengeli (0.5)</span><span>Yaratıcı (1.0)</span></div>
+                    <div class="flex justify-between text-xs text-gray-500 mt-1"><span>Mantıklı</span><span>Dengeli</span><span>Yaratıcı</span></div>
                 </div>
                 <button id="saveSettingsBtn" class="auth-btn mt-2"><i class="fas fa-save"></i> AYARLARI GÜNCELLE</button>
             </div>
@@ -215,33 +216,18 @@ HTML_TEMPLATE = """
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        let currentUser = null;
-        let currentChatId = null;
-        let currentMessages = [];
-        let currentTemperature = 0.2;
+        let currentUser = null; let currentChatId = null; let currentMessages = []; let currentTemperature = 0.2;
 
-        // DOM ELEMENTS
-        const authScreen = document.getElementById('auth-screen');
-        const appScreen = document.getElementById('app-screen');
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('overlay');
-        const chatContainer = document.getElementById('chat-container');
-        const chatList = document.getElementById('chatHistoryList');
-        const userInput = document.getElementById('userInput');
-        const actionMenu = document.getElementById('actionMenu');
-        const previewModal = document.getElementById('previewModal');
-        const settingsModal = document.getElementById('settingsModal');
-        const tempRange = document.getElementById('tempRange');
-        const tempValue = document.getElementById('tempValue');
+        const authScreen = document.getElementById('auth-screen'); const appScreen = document.getElementById('app-screen');
+        const sidebar = document.getElementById('sidebar'); const overlay = document.getElementById('overlay');
+        const chatContainer = document.getElementById('chat-container'); const chatList = document.getElementById('chatHistoryList');
+        const userInput = document.getElementById('userInput'); const actionMenu = document.getElementById('actionMenu');
+        const previewModal = document.getElementById('previewModal'); const settingsModal = document.getElementById('settingsModal');
+        const tempRange = document.getElementById('tempRange'); const tempValue = document.getElementById('tempValue');
 
-        // PLUS MENU TOGGLE
         document.getElementById('attachBtn').onclick = () => { actionMenu.classList.toggle('show'); };
         
-        // MODAL LOGIC (Preview & Settings)
-        window.openPreview = function(code) {
-            previewModal.classList.add('show');
-            document.getElementById('previewFrame').srcdoc = code;
-        };
+        window.openPreview = function(code) { previewModal.classList.add('show'); document.getElementById('previewFrame').srcdoc = code; };
         document.getElementById('closePreviewBtn').onclick = () => { previewModal.classList.remove('show'); document.getElementById('previewFrame').srcdoc = ""; };
         
         document.getElementById('openSettingsBtn').onclick = () => { actionMenu.classList.remove('show'); settingsModal.classList.add('show'); };
@@ -249,31 +235,18 @@ HTML_TEMPLATE = """
         
         tempRange.oninput = () => { tempValue.innerText = tempRange.value; };
         document.getElementById('saveSettingsBtn').onclick = () => {
-            currentTemperature = parseFloat(tempRange.value);
-            settingsModal.classList.remove('show');
-            // Basit bir bildirim göster (Toast)
-            const toast = document.createElement('div');
-            toast.className = 'fixed bottom-20 left-1/2 -translate-x-1/2 bg-orange-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg z-50';
-            toast.innerHTML = '<i class="fas fa-check-circle"></i> Ayarlar Güncellendi!';
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 2000);
+            currentTemperature = parseFloat(tempRange.value); settingsModal.classList.remove('show');
+            const toast = document.createElement('div'); toast.className = 'fixed bottom-20 left-1/2 -translate-x-1/2 bg-orange-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg z-50';
+            toast.innerHTML = '<i class="fas fa-check-circle"></i> Ayarlar Güncellendi!'; document.body.appendChild(toast); setTimeout(() => toast.remove(), 2000);
         };
 
-        // AUTH LOGIC
-        onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
                 document.getElementById('userName').innerText = user.displayName || user.email.split('@')[0];
                 document.getElementById('userAvatar').innerText = (user.displayName || user.email)[0].toUpperCase();
-                authScreen.style.display = 'none';
-                appScreen.classList.remove('hidden');
-                loadChats();
-                startNewChat();
-            } else {
-                currentUser = null;
-                authScreen.style.display = 'flex';
-                appScreen.classList.add('hidden');
-            }
+                authScreen.style.display = 'none'; appScreen.classList.remove('hidden'); loadChats(); startNewChat();
+            } else { currentUser = null; authScreen.style.display = 'flex'; appScreen.classList.add('hidden'); }
         });
 
         document.getElementById('btnLogin').onclick = () => { const e=document.getElementById('email').value,p=document.getElementById('password').value; signInWithEmailAndPassword(auth,e,p).catch(err=>alert(err.message)); };
@@ -281,7 +254,6 @@ HTML_TEMPLATE = """
         document.getElementById('btnGoogle').onclick = () => { signInWithRedirect(auth, new GoogleAuthProvider()).catch(err=>alert(err.message)); };
         document.getElementById('btnLogout').onclick = () => { signOut(auth); sidebar.classList.remove('open'); overlay.style.display='none'; };
 
-        // SIDEBAR LOGIC
         document.getElementById('menuBtn').onclick = () => { sidebar.classList.add('open'); overlay.style.display='block'; actionMenu.classList.remove('show'); };
         overlay.onclick = () => { sidebar.classList.remove('open'); overlay.style.display='none'; actionMenu.classList.remove('show'); };
         document.getElementById('newChatTopBtn').onclick = startNewChat;
@@ -291,11 +263,9 @@ HTML_TEMPLATE = """
         async function loadChats() {
             chatList.innerHTML = '<div class="text-center text-xs text-gray-500 mt-4">Yükleniyor...</div>';
             const q = query(collection(db, `users/${currentUser.uid}/chats`), orderBy('updatedAt', 'desc'));
-            const snap = await getDocs(q);
-            chatList.innerHTML = '';
+            const snap = await getDocs(q); chatList.innerHTML = '';
             snap.forEach(doc => {
-                const data = doc.data();
-                const div = document.createElement('div');
+                const data = doc.data(); const div = document.createElement('div');
                 div.className = `chat-item ${currentChatId === doc.id ? 'active' : ''}`;
                 div.innerHTML = `<span class="truncate text-sm flex-1">${data.title || 'Yeni Sohbet'}</span><i class="fas fa-trash text-gray-500 hover:text-red-500 ml-2 p-1" onclick="event.stopPropagation(); deleteChat('${doc.id}')"></i>`;
                 div.onclick = () => { loadSpecificChat(doc.id); sidebar.classList.remove('open'); overlay.style.display='none'; };
@@ -304,19 +274,16 @@ HTML_TEMPLATE = """
         }
         async function startNewChat() {
             currentChatId = generateId(); currentMessages = [];
-            chatContainer.innerHTML = '<div class="msg msg-ai glass flex items-center gap-2"><i class="fas fa-robot text-orange-500"></i> <b>Legends AI:</b> Sistem hazır. Emirlerini bekliyorum.</div>';
-            await setDoc(doc(db, `users/${currentUser.uid}/chats`, currentChatId), { title: "Yeni Sohbet", updatedAt: serverTimestamp(), messages: [] });
-            loadChats();
+            chatContainer.innerHTML = '<div class="msg msg-ai glass flex items-center gap-2"><i class="fas fa-robot text-orange-500"></i> <b>Legends AI:</b> Sistem hazır. Kurulum ve kodlama için emrindeyim.</div>';
+            await setDoc(doc(db, `users/${currentUser.uid}/chats`, currentChatId), { title: "Yeni Sohbet", updatedAt: serverTimestamp(), messages: [] }); loadChats();
         }
         async function loadSpecificChat(chatId) {
             currentChatId = chatId; chatContainer.innerHTML = '';
             const docSnap = await getDoc(doc(db, `users/${currentUser.uid}/chats`, chatId));
-            if (docSnap.exists()) { currentMessages = docSnap.data().messages || []; currentMessages.forEach(m => addChatUI(m.content, m.role)); }
-            loadChats();
+            if (docSnap.exists()) { currentMessages = docSnap.data().messages || []; currentMessages.forEach(m => addChatUI(m.content, m.role)); } loadChats();
         }
         window.deleteChat = async function(chatId) { if(confirm("Sohbet silinsin mi?")) { await deleteDoc(doc(db, `users/${currentUser.uid}/chats`, chatId)); if(currentChatId === chatId) startNewChat(); else loadChats(); } }
 
-        // CHAT LOGIC
         document.getElementById('sendBtn').onclick = sendMsg;
         userInput.addEventListener('keypress', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } });
         async function sendMsg() {
@@ -336,6 +303,7 @@ HTML_TEMPLATE = """
                 await updateDoc(doc(db, `users/${currentUser.uid}/chats`, currentChatId), { messages: currentMessages, updatedAt: serverTimestamp() });
             } catch(e) { document.getElementById(loadId).innerText = "❌ Sunucu hatası!"; }
         }
+        
         function addChatUI(text, role) {
             const d = document.createElement('div');
             d.className = `msg msg-${role === 'user' ? 'user' : 'ai'} glass relative group`;
@@ -344,9 +312,23 @@ HTML_TEMPLATE = """
             if (role === 'assistant') {
                 d.querySelectorAll('pre').forEach(pre => {
                     const codeText = pre.innerText; const actionDiv = document.createElement('div'); actionDiv.className = 'code-actions';
+                    
+                    // KOPYALA BUTONU
                     const copyBtn = document.createElement('button'); copyBtn.className = 'code-btn'; copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
                     copyBtn.onclick = () => { navigator.clipboard.writeText(codeText); copyBtn.innerHTML = '<i class="fas fa-check text-green-400"></i>'; setTimeout(() => copyBtn.innerHTML = '<i class="fas fa-copy"></i>', 2000); };
                     actionDiv.appendChild(copyBtn);
+                    
+                    // YENİ: GÜNCELLE BUTONU (UPREAD)
+                    const updateBtn = document.createElement('button'); updateBtn.className = 'code-btn btn-update'; updateBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                    updateBtn.onclick = () => {
+                        const box = document.getElementById('userInput');
+                        box.value = "Lütfen aşağıdaki kodun HİÇBİR özelliğini SİLMEDEN ve BOZMADAN üstüne şu güncellemeyi yap:\n\n[İSTEDİĞİN YENİ ÖZELLİĞİ BURAYA YAZ]\n\nİşte mevcut kod:\n```\n" + codeText + "\n```";
+                        box.style.height = 'auto'; box.style.height = Math.min(box.scrollHeight, 150) + 'px';
+                        box.focus(); box.setSelectionRange(84, 118); // Yazı yazılacak yeri seçili hale getir
+                    };
+                    actionDiv.appendChild(updateBtn);
+
+                    // ÖNİZLE BUTONU
                     if(codeText.includes('<html') || codeText.includes('<body') || codeText.includes('document.createElement')) {
                         const previewBtn = document.createElement('button'); previewBtn.className = 'code-btn bg-orange-500/20 text-orange-500 hover:bg-orange-500 hover:text-white'; previewBtn.innerHTML = '<i class="fas fa-play"></i>'; previewBtn.onclick = () => window.openPreview(codeText); actionDiv.appendChild(previewBtn);
                     }
@@ -373,15 +355,14 @@ def chat():
     global current_key_index
     data = request.json
     incoming_messages = data.get('messages', [])
-    # Frontend'den gelen sıcaklık ayarını al, yoksa 0.2 kullan
     temperature = data.get('temperature', 0.2)
+
     system_msg = [{"role": "system", "content": SYSTEM_PROMPT}]
     messages_for_llm = system_msg + incoming_messages
     success = False; answer = "Hata"
     while current_key_index < len(API_KEYS):
         try:
             client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=API_KEYS[current_key_index])
-            # Sıcaklık ayarını motora gönder
             res = client.chat.completions.create(model=MODEL, messages=messages_for_llm, temperature=temperature)
             answer = res.choices[0].message.content; success = True; break
         except: current_key_index += 1
