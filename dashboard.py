@@ -134,20 +134,8 @@ def architect():
     cmd = data.get('command')
     try:
         with open('dashboard.py', 'r') as f: current = f.read()
-        prompt = f"Aşağıdaki Python Flask kodunu şu tasarım komutuna göre SADECE tam kod olarak döndür: {cmd}\\n\\nKod:\\n{current}"
+        prompt = f"Aşağıdaki Python Flask kodunu şu tasarım komutuna göre SADECE tam kod olarak döndür: {cmd}\n\nKod:\n{current}"
         client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=API_KEYS[0])
         res = client.chat.completions.create(model=MODEL, messages=[{"role": "user", "content": prompt}], temperature=0.1)
         new_code = res.choices[0].message.content
-        if "```python" in new_code: new_code = new_code.split("```python")[1].split("```")[0].strip()
-        elif "```" in new_code: new_code = new_code.split("```")[1].split("```")[0].strip()
-        with open('dashboard.py', 'w') as f: f.write(new_code)
-        # ARKA PLANDA OTOMATİK YAYINLA
-        subprocess.run(["git", "add", "dashboard.py"])
-        subprocess.run(["git", "commit", "-m", f"Architect: {cmd}"])
-        subprocess.run(["git", "push", "origin", "main"])
-        return jsonify({"success": True})
-    except Exception as e: return jsonify({"success": False, "error": str(e)})
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
-
+        if "
