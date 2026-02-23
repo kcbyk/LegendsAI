@@ -96,10 +96,10 @@ HTML_TEMPLATE = """
         document.getElementById('closeArchPanel').onclick = () => document.getElementById('architect-panel').classList.remove('open');
         document.getElementById('applyChangesBtn').onclick = async () => {
             const cmd = document.getElementById('archInput').value; if(!cmd) return;
-            document.getElementById('archStatus').innerText = "⏳ Mimar sistemi baştan yazıyor...";
+            document.getElementById('archStatus').innerText = "Mimar sistemi baştan yazıyor...";
             const res = await fetch('/api/architect', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ command: cmd }) });
             const data = await res.json();
-            if(data.success) { document.getElementById('archStatus').innerText = "✅ TASARIM UYGULANDI!"; setTimeout(() => window.location.reload(), 2000); } else { alert("Hata: " + data.error); }
+            if(data.success) { document.getElementById('archStatus').innerText = "TASARIM UYGULANDI!"; setTimeout(() => window.location.reload(), 2000); } else { alert("Hata: " + data.error); }
         };
         document.getElementById('sendBtn').onclick = async () => {
             const val = document.getElementById('userInput').value; if(!val) return;
@@ -113,51 +113,4 @@ HTML_TEMPLATE = """
             if(r==='ai') { d.querySelectorAll('pre').forEach(pre => {
                 const c = pre.innerText; const acts = document.createElement('div'); acts.className = 'code-actions';
                 const up = document.createElement('button'); up.className='code-btn btn-upread'; up.innerHTML='<i class="fas fa-sync"></i> Güncelle';
-                up.onclick = () => { document.getElementById('userInput').value = "Şu kodu geliştir:\\n```\\n" + c + "\\n```"; };
-                const cp = document.createElement('button'); cp.className='code-btn'; cp.innerHTML='<i class="fas fa-copy"></i> Kopyala';
-                cp.onclick = () => { navigator.clipboard.writeText(c); cp.innerText='Alındı!'; };
-                const pv = document.createElement('button'); pv.className='code-btn btn-preview'; pv.innerHTML='<i class="fas fa-play"></i> Önizle';
-                pv.onclick = () => { alert('Önizleme başlatılıyor...'); };
-                acts.append(up, cp, pv); pre.appendChild(acts);
-            }); }
-            document.getElementById('chat-container').scrollTop = document.getElementById('chat-container').scrollHeight;
-        }
-    </script>
-</body>
-</html>
-"""
-
-@app.route('/')
-def index(): return render_template_string(HTML_TEMPLATE)
-
-@app.route('/api/chat', methods=['POST'])
-def chat():
-    data = request.json
-    try:
-        client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=API_KEYS[0])
-        res = client.chat.completions.create(model=MODEL, messages=[{"role": "system", "content": SYSTEM_PROMPT}] + data.get('messages', []), temperature=0.3)
-        return jsonify({"answer": res.choices[0].message.content})
-    except: return jsonify({"answer": "Limit doldu!"})
-
-@app.route('/api/architect', methods=['POST'])
-def architect():
-    data = request.json
-    cmd = data.get('command')
-    try:
-        with open('dashboard.py', 'r') as f: current = f.read()
-        prompt = f"Aşağıdaki Python Flask kodunu şu tasarım komutuna göre SADECE tam kod olarak döndür: {cmd}\\n\\nKod:\\n{current}"
-        client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=API_KEYS[0])
-        res = client.chat.completions.create(model=MODEL, messages=[{"role": "user", "content": prompt}], temperature=0.1)
-        new_code = res.choices[0].message.content
-        if "```python" in new_code: new_code = new_code.split("```python")[1].split("```")[0].strip()
-        with open('dashboard.py', 'w') as f: f.write(new_code)
-        subprocess.run(["git", "add", "dashboard.py"])
-        subprocess.run(["git", "commit", "-m", f"Architect: {cmd}"])
-        subprocess.run(["git", "push", "origin", "main"])
-        return jsonify({"success": True})
-    except Exception as e: return jsonify({"success": False, "error": str(e)})
-
-if __name__ == '__main__':
-
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
-
+                up.onclick = () => { document.getElementById('userInput').value = "Şu kodu geliştir:\\n
