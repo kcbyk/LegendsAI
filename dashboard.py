@@ -1,10 +1,10 @@
 from flask import Flask, render_template_string, request, jsonify
-import os, subprocess
+import os
 from openai import OpenAI
 
 app = Flask(__name__)
 
-# --- LEGENDS AI V13 CORE (MİMAR MODU AKTİF) ---
+# --- LEGENDS AI V19.0 (VERCEL CLONE EDITION) ---
 API_KEYS = [
     "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",
     "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",
@@ -12,201 +12,9 @@ API_KEYS = [
     "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",
     "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"
 ]
-
 current_key_index = 0
 MODEL = "llama-3.3-70b-versatile"
-
-# MİMARIN ANA TALİMATI
-SYSTEM_PROMPT = """Sen Legends AI'sın. Şenol Kocabıyık'ın Baş Mimarı ve yazılımı geliştiren asistanısın.
-1) Görevin, uygulamanın kodlarını Şenol'un isteğine göre GÜNCELLEMEK.
-2) Kod yazarken HİÇBİR ÖZELLİĞİ SİLME. Sadece ekleme yap veya iyileştir.
-3) Çıktı olarak SADECE tam python kodunu ver (dashboard.py içeriği).
-4) Görsel olarak her zaman efsanevi, neon ve profesyonel bir UI kullan."""
-
-@app.route('/manifest.json')
-def manifest():
-    return jsonify({
-        "name": "Legends AI | Architect",
-        "short_name": "LegendsAI",
-        "start_url": "/",
-        "display": "standalone",
-        "background_color": "#020617",
-        "theme_color": "#f97316",
-        "icons": [{"src": "https://cdn-icons-png.flaticon.com/512/2103/2103633.png", "sizes": "512x512", "type": "image/png"}]
-    })
-
-@app.route('/sw.js')
-def sw():
-    return "self.addEventListener('fetch', function(event) {});", 200, {'Content-Type': 'application/javascript'}
-
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <title>LEGENDS AI | ARCHITECT</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <link rel="manifest" href="/manifest.json">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <style>
-        :root { --primary: #f97316; --bg: #020617; --card: rgba(15, 23, 42, 0.9); --text: #f1f5f9; }
-        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; height: 100dvh; overflow: hidden; margin: 0; display: flex; flex-direction: column; }
-        .glass { background: var(--card); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); }
-        
-        /* MİMAR PANELİ SİDEBAR (SAĞDA) */
-        #architect-panel { position: absolute; right: -320px; top: 0; bottom: 0; width: 300px; z-index: 200; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); padding: 20px; border-left: 1px solid var(--primary); }
-        #architect-panel.open { right: 0; }
-        
-        header { padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; z-index: 50; }
-        #chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 20px; scroll-behavior: smooth; }
-        
-        .msg { max-width: 90%; padding: 16px 20px; border-radius: 24px; animation: slideIn 0.3s ease; }
-        .msg-user { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 4px; }
-        .msg-ai { align-self: flex-start; background: var(--card); border-bottom-left-radius: 4px; width: 100%; }
-
-        .code-actions { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; z-index: 100; }
-        .code-btn { background: rgba(255,255,255,0.1); border:none; color: white; padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        .code-btn:hover { background: var(--primary); }
-
-        .input-area { padding: 16px; padding-bottom: max(16px, env(safe-area-inset-bottom)); position: relative; }
-        .input-box { border-radius: 28px; padding: 8px 12px; display: flex; align-items: flex-end; gap: 10px; }
-        textarea { flex: 1; background: transparent; border: none; outline: none; color: white; max-height: 140px; resize: none; font-size: 16px; padding: 8px 0; }
-        
-        /* MİMAR BUTONU */
-        #archBtn { background: linear-gradient(45deg, #f97316, #ea580c); box-shadow: 0 0 15px rgba(249, 115, 22, 0.4); }
-        
-        pre { background: #000 !important; border-radius: 16px; padding: 50px 14px 14px 14px; margin: 15px 0; position: relative; overflow-x: auto; }
-        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    </style>
-</head>
-<body>
-
-    <div id="auth-screen">
-        <div class="text-center mb-10"><i class="fas fa-crown text-6xl text-orange-500 drop-shadow-lg"></i><h1 class="text-3xl font-black mt-4">LEGENDS ARCHITECT</h1></div>
-        <div class="auth-box glass p-8 rounded-[30px] w-full max-w-[350px]">
-            <input type="email" id="email" class="w-full p-4 mb-4 rounded-xl bg-white/5 border border-white/10 outline-none" placeholder="E-Posta">
-            <input type="password" id="password" class="w-full p-4 mb-6 rounded-xl bg-white/5 border border-white/10 outline-none" placeholder="Şifre">
-            <button id="btnLogin" class="w-full p-4 bg-orange-500 rounded-xl font-bold">GİRİŞ YAP</button>
-        </div>
-    </div>
-
-    <div id="app-screen" class="hidden h-full flex flex-col relative">
-        <header class="glass">
-            <button id="menuBtn" class="p-2"><i class="fas fa-bars"></i></button>
-            <div class="font-black text-lg">MİMAR MODU</div>
-            <button id="openArchPanel" class="w-10 h-10 rounded-full flex items-center justify-center text-white" id="archBtn"><i class="fas fa-magic"></i></button>
-        </header>
-
-        <div id="chat-container"></div>
-
-        <aside id="architect-panel" class="glass">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="font-bold text-orange-500"><i class="fas fa-drafting-compass"></i> Tasarım Odası</h2>
-                <i class="fas fa-times cursor-pointer" id="closeArchPanel"></i>
-            </div>
-            <p class="text-xs opacity-60 mb-4">Buraya yazdığın komutlar doğrudan uygulamanın kodunu değiştirecektir.</p>
-            <textarea id="archInput" class="w-full h-40 p-4 rounded-xl bg-white/5 border border-white/10 text-sm outline-none" placeholder="Örn: Butonları mavi yap ve yanıp sönen bir neon ekle..."></textarea>
-            <button id="applyChangesBtn" class="w-full p-4 mt-4 bg-orange-500 rounded-xl font-bold text-sm shadow-lg"><i class="fas fa-hammer"></i> TASARIMI UYGULA</button>
-            <div id="archStatus" class="mt-4 text-[10px] text-center opacity-50"></div>
-        </aside>
-
-        <div class="input-area">
-            <div class="input-box glass">
-                <textarea id="userInput" placeholder="Yazılım emrini ver..." rows="1" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
-                <div id="sendBtn" class="w-11 h-11 rounded-full bg-orange-500 flex items-center justify-center cursor-pointer flex-shrink-0"><i class="fas fa-paper-plane text-white"></i></div>
-            </div>
-        </div>
-    </div>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyAnNzL2wSLEsy6DprleCNSq9elnv3X7BTg",
-            authDomain: "legendsai-3e2d6.firebaseapp.com",
-            projectId: "legendsai-3e2d6",
-            storageBucket: "legendsai-3e2d6.firebasestorage.app",
-            messagingSenderId: "504400540515",
-            appId: "1:504400540515:web:16cdc9ff57dd8fa2981956",
-            measurementId: "G-HB74Q30T9T"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
-        let currentUser = null; let currentChatId = null; let currentMessages = [];
-
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                currentUser = user; document.getElementById('auth-screen').style.display = 'none';
-                document.getElementById('app-screen').classList.remove('hidden'); startNewChat();
-            } else { document.getElementById('auth-screen').style.display = 'flex'; document.getElementById('app-screen').classList.add('hidden'); }
-        });
-
-        document.getElementById('btnLogin').onclick = () => { signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value).catch(err=>alert(err.message)); };
-
-        // MİMAR PANELİ KONTROLLERİ
-        const archPanel = document.getElementById('architect-panel');
-        document.getElementById('openArchPanel').onclick = () => archPanel.classList.add('open');
-        document.getElementById('closeArchPanel').onclick = () => archPanel.classList.remove('open');
-
-        document.getElementById('applyChangesBtn').onclick = async () => {
-            const cmd = document.getElementById('archInput').value; if(!cmd) return;
-            const status = document.getElementById('archStatus');
-            status.innerText = "⏳ Mimar düşünüyor ve kodları baştan yazıyor...";
-            
-            try {
-                const res = await fetch('/api/architect', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ command: cmd })
-                });
-                const data = await res.json();
-                if(data.success) {
-                    status.innerText = "✅ TASARIM UYGULANDI! Sunucu yenileniyor...";
-                    setTimeout(() => window.location.reload(), 3000);
-                } else { status.innerText = "❌ Hata: " + data.error; }
-            } catch(e) { status.innerText = "❌ Bağlantı hatası!"; }
-        };
-
-        // SOHBET MEKANİĞİ
-        document.getElementById('sendBtn').onclick = sendMsg;
-        async function sendMsg() {
-            const val = document.getElementById('userInput').value; if(!val) return;
-            document.getElementById('userInput').value = ""; addChatUI(val, 'user');
-            currentMessages.push({role: "user", content: val});
-            const res = await fetch('/api/chat', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ messages: currentMessages }) });
-            const data = await res.json(); addChatUI(data.answer, 'assistant');
-            currentMessages.push({role: "assistant", content: data.answer});
-        }
-
-        function addChatUI(text, role) {
-            const d = document.createElement('div'); d.className = `msg msg-${role === 'user' ? 'user' : 'ai'} glass`;
-            d.innerHTML = marked.parse(text); document.getElementById('chat-container').appendChild(d);
-            
-            if(role === 'assistant') {
-                d.querySelectorAll('pre').forEach(pre => {
-                    const code = pre.innerText; const btn = document.createElement('button');
-                    btn.className = 'code-btn'; btn.innerHTML = '<i class="fas fa-copy"></i> Kopyala';
-                    btn.onclick = () => navigator.clipboard.writeText(code);
-                    pre.appendChild(btn);
-                });
-            }
-            document.getElementById('chat-container').scrollTop = document.getElementById('chat-container').scrollHeight;
-        }
-
-        async function startNewChat() {
-            currentChatId = Date.now().toString(36);
-            document.getElementById('chat-container').innerHTML = '<div class="msg msg-ai glass">Hoş geldin Mimar. Tasarım odasından veya buradan emirlerini verebilirsin.</div>';
-        }
-    </script>
-</body>
-</html>
-"""
+SYSTEM_PROMPT = "Sen Legends Master Pro'sun. Vercel UI klonunda Şenol Kocabıyık'a hizmet eden baş mimarsın. Kodlarda v1/v2 versiyonlama yap."
 
 @app.route('/')
 def index(): return render_template_string(HTML_TEMPLATE)
@@ -216,50 +24,152 @@ def chat():
     global current_key_index
     data = request.json
     messages = [{"role": "system", "content": SYSTEM_PROMPT}] + data.get('messages', [])
-    try:
-        client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=API_KEYS[current_key_index])
-        res = client.chat.completions.create(model=MODEL, messages=messages, temperature=0.3)
-        return jsonify({"answer": res.choices[0].message.content})
-    except: return jsonify({"answer": "Limit doldu!"})
+    temp = data.get('settings', {}).get('temperature', 0.2)
+    attempts = 0
+    while attempts < len(API_KEYS):
+        try:
+            client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=API_KEYS[current_key_index])
+            res = client.chat.completions.create(model=MODEL, messages=messages, temperature=temp)
+            return jsonify({"answer": res.choices[0].message.content})
+        except:
+            current_key_index = (current_key_index + 1) % len(API_KEYS)
+            attempts += 1
+    return jsonify({"answer": "❌ Tüm anahtarların limiti doldu!"})
 
-# --- MİMARIN ASIL SİHRİ: DOSYA YAZMA ENDPOİNTİ ---
-@app.route('/api/architect', methods=['POST'])
-def architect():
-    data = request.json
-    command = data.get('command')
-    
-    # 1. Mevcut dashboard.py dosyasını oku
-    with open('dashboard.py', 'r') as f:
-        current_code = f.read()
-    
-    # 2. AI'dan bu kodu güncellemesini iste
-    prompt = f"Aşağıdaki Python Flask kodunu, şu tasarım komutuna göre güncelle. HİÇBİR ÖZELLİĞİ SİLME. Sadece tam kodu döndür.\nKomut: {command}\n\nKod:\n{current_code}"
-    
-    try:
-        client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=API_KEYS[0])
-        res = client.chat.completions.create(
-            model=MODEL, 
-            messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}],
-            temperature=0.1
-        )
-        new_code = res.choices[0].message.content
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="tr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <title>Legends Master Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>tailwind.config = { darkMode: 'class', theme: { extend: { colors: { vercelBg: '#000000', vercelBorder: '#333333', vercelHover: '#1A1A1A' } } } }</script>
+    <style>
+        body { background: #000; color: #ededed; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; height: 100dvh; display: flex; }
+        .sidebar { width: 260px; background: #000; border-right: 1px solid var(--vercelBorder); transition: transform 0.3s; }
+        .msg-user { background: #1A1A1A; border: 1px solid var(--vercelBorder); border-radius: 12px; padding: 16px; margin-left: auto; max-width: 80%; }
+        .msg-ai { padding: 16px 0; max-width: 100%; border-bottom: 1px solid var(--vercelBorder); }
+        pre { background: #0A0A0A !important; border: 1px solid var(--vercelBorder); border-radius: 8px; padding: 40px 16px 16px 16px; margin: 16px 0; position: relative; overflow-x: auto; }
+        .code-actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 8px; }
+        .code-btn { padding: 4px 8px; border-radius: 6px; font-size: 12px; color: #888; background: transparent; border: 1px solid var(--vercelBorder); cursor: pointer; transition: 0.2s; }
+        .code-btn:hover { background: #1A1A1A; color: #fff; }
+        .input-container { background: #000; border: 1px solid var(--vercelBorder); border-radius: 12px; padding: 8px 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        textarea:focus { outline: none; }
+        @media (max-width: 768px) { .sidebar { position: absolute; transform: translateX(-100%); z-index: 50; height: 100%; } .sidebar.open { transform: translateX(0); } }
+    </style>
+</head>
+<body>
+
+    <aside id="sidebar" class="sidebar flex flex-col">
+        <div class="p-4 flex items-center justify-between border-b border-[#333]">
+            <span class="font-bold tracking-tight">LEGENDS PRO</span>
+            <button id="closeSidebar" class="md:hidden text-gray-400"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="p-3">
+            <button id="newChatBtn" class="w-full text-left p-3 rounded-lg hover:bg-vercelHover border border-[#333] flex items-center gap-2 text-sm transition">
+                <i class="fas fa-plus text-xs"></i> New Chat
+            </button>
+        </div>
+        <div id="historyList" class="flex-1 overflow-y-auto p-3 space-y-1 text-sm text-gray-400">
+            </div>
+        <div class="p-4 border-t border-[#333] flex items-center justify-between text-sm">
+            <div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center font-bold">ŞK</div> Şenol Kocabıyık</div>
+            <button class="text-gray-500 hover:text-white"><i class="fas fa-cog"></i></button>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col relative overflow-hidden">
+        <header class="h-14 flex items-center px-4 border-b border-[#333] md:hidden">
+            <button id="openSidebar" class="text-gray-400 mr-3"><i class="fas fa-bars"></i></button>
+            <span class="font-bold">LEGENDS PRO</span>
+        </header>
+
+        <div id="chat-container" class="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 pb-32">
+            <div class="flex flex-col items-center justify-center h-full text-center text-gray-500">
+                <i class="fas fa-cube text-4xl mb-4 text-white"></i>
+                <h2 class="text-xl font-medium text-white">How can I help you today?</h2>
+                <p class="text-sm mt-2 max-w-sm">Legends AI Master Pro - Vercel Edition</p>
+            </div>
+        </div>
+
+        <div class="absolute bottom-0 w-full p-4 md:p-8 bg-gradient-to-t from-black via-black to-transparent">
+            <div class="max-w-3xl mx-auto input-container flex items-end gap-2">
+                <button class="p-2 text-gray-400 hover:text-white transition"><i class="fas fa-paperclip"></i></button>
+                <textarea id="userInput" class="flex-1 bg-transparent border-none text-white resize-none max-h-[200px] py-2 text-sm" placeholder="Message Legends AI..." rows="1"></textarea>
+                <button id="sendBtn" class="p-2 bg-white text-black rounded-lg hover:bg-gray-200 transition"><i class="fas fa-arrow-up"></i></button>
+            </div>
+            <div class="text-center text-[10px] text-gray-500 mt-3">Legends AI can make mistakes. Consider verifying important information.</div>
+        </div>
+    </main>
+
+    <script>
+        let chatHistory = [];
         
-        # Sadece kod bloğunu temizle (markdown ``` işaretlerinden kurtul)
-        if "```python" in new_code: new_code = new_code.split("```python")[1].split("```")[0].strip()
-        elif "```" in new_code: new_code = new_code.split("```")[1].split("```")[0].strip()
+        document.getElementById('sendBtn').onclick = sendMessage;
+        document.getElementById('userInput').oninput = function() { this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'; };
+        document.getElementById('userInput').onkeydown = (e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
 
-        # 3. YENİ KODU DOSYAYA YAZ (TERMUX ÜZERİNDE KENDİNİ GÜNCELLE!)
-        with open('dashboard.py', 'w') as f:
-            f.write(new_code)
+        async function sendMessage() {
+            const val = document.getElementById('userInput').value.trim(); if(!val) return;
             
-        # 4. (Opsiyonel) GitHub'a otomatik fırlat (Eğer kuruluysa)
-        subprocess.run(["git", "add", "dashboard.py"])
-        subprocess.run(["git", "commit", "-m", f"Architect: {command}"])
-        subprocess.run(["git", "push", "origin", "main"])
+            // Eğer ilk mesajsa ortadaki logoyu sil
+            if(chatHistory.length === 0) document.getElementById('chat-container').innerHTML = '';
+            
+            document.getElementById('userInput').value = ""; document.getElementById('userInput').style.height = 'auto';
+            addMsgUI(val, 'user');
+            chatHistory.push({role: "user", content: val});
+            
+            const loadId = "ai_" + Date.now();
+            document.getElementById('chat-container').innerHTML += `<div id="${loadId}" class="msg-ai text-gray-400 text-sm"><i class="fas fa-circle-notch fa-spin mr-2"></i> Thinking...</div>`;
+            document.getElementById('chat-container').scrollTop = document.getElementById('chat-container').scrollHeight;
 
-        return jsonify({"success": True})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+            try {
+                const res = await fetch('/api/chat', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ messages: chatHistory }) });
+                const data = await res.json();
+                document.getElementById(loadId).remove();
+                addMsgUI(data.answer, 'assistant');
+                chatHistory.push({role: "assistant", content: data.answer});
+            } catch(e) { document.getElementById(loadId).innerHTML = "❌ Error"; }
+        }
+
+        function addMsgUI(t, r) {
+            const d = document.createElement('div'); 
+            d.className = r === 'user' ? 'msg-user text-sm' : 'msg-ai text-sm flex gap-4';
+            
+            if(r === 'user') {
+                d.innerHTML = t;
+            } else {
+                d.innerHTML = `<div class="w-8 h-8 rounded-full border border-[#333] flex items-center justify-center flex-shrink-0 bg-[#111]"><i class="fas fa-cube text-xs text-white"></i></div><div class="flex-1 markdown-body">${marked.parse(t)}</div>`;
+            }
+            
+            document.getElementById('chat-container').appendChild(d);
+            
+            if(r === 'assistant') {
+                d.querySelectorAll('pre').forEach(pre => {
+                    const code = pre.innerText, acts = document.createElement('div'); acts.className = 'code-actions';
+                    
+                    const up = document.createElement('button'); up.className='code-btn'; up.innerHTML='<i class="fas fa-history"></i> Güncelle v2';
+                    up.onclick = () => { document.getElementById('userInput').value = `Mevcut kodu bozmadan şunları ekle:\\n\\n\`\`\`\\n${code}\\n\`\`\``; document.getElementById('userInput').focus(); };
+                    
+                    const cp = document.createElement('button'); cp.className='code-btn'; cp.innerHTML='<i class="fas fa-copy"></i> Kopyala';
+                    cp.onclick = () => { navigator.clipboard.writeText(code); cp.innerHTML='<i class="fas fa-check"></i>'; setTimeout(()=>cp.innerHTML='<i class="fas fa-copy"></i> Kopyala', 2000); };
+                    
+                    acts.append(up, cp); pre.appendChild(acts);
+                });
+            }
+            document.getElementById('chat-container').scrollTop = document.getElementById('chat-container').scrollHeight;
+        }
+
+        document.getElementById('openSidebar').onclick = () => document.getElementById('sidebar').classList.add('open');
+        document.getElementById('closeSidebar').onclick = () => document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('newChatBtn').onclick = () => { chatHistory = []; document.getElementById('chat-container').innerHTML = '<div class="flex flex-col items-center justify-center h-full text-center text-gray-500"><i class="fas fa-cube text-4xl mb-4 text-white"></i><h2 class="text-xl font-medium text-white">How can I help you today?</h2></div>'; };
+    </script>
+</body>
+</html>
+"""
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
