@@ -1,28 +1,17 @@
-# Sadece Architect (Mimar) kısmındaki kritik düzeltme:
-@app.route('/api/architect', methods=['POST'])
-def architect():
-    data = request.json
-    command = data.get('command')
-    try:
-        with open('dashboard.py', 'r') as f: current_code = f.read()
-        prompt = f"Aşağıdaki Flask koduna şu özelliği ekle/güncelle. SADECE tam kodu döndür. HİÇBİR ÖZELLİĞİ SİLME.\\nKomut: {command}\\n\\nKod:\\n{current_code}"
-        
-        client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=API_KEYS[0])
-        res = client.chat.completions.create(model=MODEL, messages=[{"role": "user", "content": prompt}], temperature=0.1)
-        new_code = res.choices[0].message.content
-        
-        # Markdown temizliği (Hata koruması)
-        if "```python" in new_code: new_code = new_code.split("```python")[1].split("```")[0].strip()
-        elif "```" in new_code: new_code = new_code.split("```")[1].split("```")[0].strip()
+#!/bin/bash
+clear
+echo "🚀 Legends AI Mimar Botu Başladı..."
+rm -f dashboard.py
+echo "📝 Yeni kodu yapıştır (CTRL+O, Enter, CTRL+X)"
+nano dashboard.py
 
-        with open('dashboard.py', 'w') as f: f.write(new_code)
-        
-        # ARKA PLANDA OTOMATİK YAYINLA
-        os.system("git add dashboard.py")
-        os.system(f"git commit -m 'Architect: {command}'")
-        os.system("git push origin main") 
+# Şifre sormaması için ayarı zorla açıyoruz
+git config --global credential.helper store
 
-        return jsonify({"success": True})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+echo "📦 GitHub'a fırlatılıyor..."
+git add dashboard.py
+git commit -m "Mimar Guncellemesi"
+git push -u origin main
+
+echo "✅ TAMAMDIR PATRON! 3 Dakika bekle Render yenilensin."
 
