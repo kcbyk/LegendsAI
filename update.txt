@@ -1,127 +1,202 @@
+===FILE: dashboard.py
+from flask import Flask, render_template, request, jsonify, Response, stream_with_context
+import os, requests, json
+
+app = Flask(__name__)
+API_KEYS = ["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", "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", "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", "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", "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"]
+MODEL = "llama-3.3-70b-versatile"
+DEFAULT_PROMPT = "Sen Legends Master Pro'sun. Şenol Kocabıyık'ın Baş Mimarısın. Kusursuz kod yaz."
+
+@app.route('/')
+def index(): return render_template('index.html')
+
+@app.route('/api/chat', methods=['POST'])
+def chat():
+    data = request.json
+    custom_prompt = data.get('settings', {}).get('systemPrompt', "")
+    final_prompt = custom_prompt if custom_prompt.strip() else DEFAULT_PROMPT
+    full_messages = [{"role": "system", "content": final_prompt}] + data.get('messages', [])[-20:]
+    temp = float(data.get('settings', {}).get('temperature', 0.3))
+    def generate():
+        key_idx = 0; attempts = 0
+        while attempts < len(API_KEYS):
+            try:
+                with requests.post("https://api.groq.com/openai/v1/chat/completions", headers={"Authorization": f"Bearer {API_KEYS[key_idx]}", "Content-Type": "application/json"}, json={"model": MODEL, "messages": full_messages, "temperature": temp, "max_tokens": 6000, "stream": True}, stream=True, timeout=25) as resp:
+                    if resp.status_code == 200:
+                        for line in resp.iter_lines():
+                            if line:
+                                dec = line.decode('utf-8').replace('data: ', '')
+                                if dec != '[DONE]':
+                                    try:
+                                        content = json.loads(dec)['choices'][0]['delta'].get('content')
+                                        if content: yield content
+                                    except: pass
+                        return
+                    else: raise Exception("API Error")
+            except Exception: key_idx = (key_idx + 1) % len(API_KEYS); attempts += 1
+        yield "❌ Sunucu yoğun."
+    return Response(stream_with_context(generate()), mimetype='text/plain')
+
+if __name__ == '__main__': app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+===END===
+===FILE: static/style.css
+:root { --bg: #000000; --panel: #0a0a0a; --border: #1a1a1a; --accent: #3b82f6; }
+body { background: var(--bg); color: #fff; font-family: sans-serif; height: 100dvh; display: flex; overflow: hidden; margin: 0; }
+.custom-scrollbar::-webkit-scrollbar { width: 6px; } .custom-scrollbar::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
+.auth-overlay { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,0.95); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.auth-card { background: var(--panel); border: 1px solid var(--border); padding: 40px; rounded-3xl; width: 100%; max-width: 400px; text-align: center; }
+.auth-input { width: 100%; padding: 16px; margin-bottom: 12px; background: #111; border: 1px solid #333; color: white; border-radius: 16px; outline: none; box-sizing: border-box; }
+.btn-primary { padding: 16px; background: var(--accent); color: white; font-weight: bold; border-radius: 16px; width: 100%; border: none; margin-bottom: 12px; cursor: pointer; }
+.btn-secondary { padding: 16px; background: #222; color: white; font-weight: bold; border-radius: 16px; width: 100%; border: 1px solid #444; margin-bottom: 12px; cursor: pointer; }
+.btn-google { padding: 16px; background: white; color: black; font-weight: bold; border-radius: 16px; width: 100%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.sidebar { position: fixed; transform: translateX(-100%); z-index: 50; height: 100%; width: 85%; max-width: 300px; background: #050505; border-right: 1px solid var(--border); display: flex; flex-direction: column; transition: 0.3s; }
+.sidebar.open { transform: translateX(0); }
+.main-content { flex: 1; display: flex; flex-direction: column; background: #000; }
+.mobile-header { padding: 16px; border-bottom: 1px solid #111; display: flex; align-items: center; background: #050505; }
+.chat-area { flex: 1; overflow-y: auto; padding: 16px; padding-bottom: 100px; }
+.input-wrapper { position: fixed; bottom: 0; left: 0; right: 0; padding: 12px; background: linear-gradient(to top, black 70%, transparent); z-index: 40; }
+.input-box { max-w-4xl: mx-auto; background: #111; border: 1px solid #333; border-radius: 32px; padding: 8px 12px; display: flex; align-items: flex-end; }
+textarea { flex: 1; background: transparent; border: none; color: white; padding: 10px; font-size: 15px; outline: none; resize: none; max-height: 120px; }
+.send-btn { background: var(--accent); color: white; border: none; width: 44px; height: 44px; border-radius: 50%; font-size: 18px; cursor: pointer; }
+.msg-user { background: var(--accent); color: white; padding: 12px 16px; border-radius: 20px 20px 4px 20px; max-width: 85%; margin: 8px 0 16px auto; font-size: 14px; }
+.msg-ai { padding: 16px 0; border-bottom: 1px solid #111; display: flex; flex-direction: column; gap: 8px; }
+pre { background: #080808 !important; border: 1px solid #222; border-radius: 12px 12px 0 0; padding: 16px; margin: 12px 0 0 0; overflow-x: auto; font-size: 12px; }
+.code-toolbar { background: #111; border: 1px solid #222; border-top: none; border-radius: 0 0 12px 12px; padding: 8px; display: flex; gap: 4px; overflow-x: auto; margin-bottom: 16px; }
+.code-btn { padding: 8px 12px; border-radius: 8px; font-size: 11px; font-weight: bold; background: #222; color: #fff; border: 1px solid #333; cursor: pointer; white-space: nowrap; flex: 1; }
+.btn-v2 { background: #3b82f6; border-color: #2563eb; } .btn-pre { background: #16a34a; border-color: #15803d; } .btn-dl { background: #8b5cf6; border-color: #7c3aed; }
+.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 100; align-items: center; justify-content: center; padding: 16px; }
+.modal.active { display: flex; }
+.modal-card { background: var(--panel); border: 1px solid var(--border); padding: 24px; rounded-3xl; width: 100%; max-width: 400px; }
+@media (min-width: 768px) { .sidebar { position: relative; transform: translateX(0); } .code-btn { flex: none; } }
+===END===
+===FILE: static/script.js
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { getFirestore, collection, doc, setDoc, getDoc, deleteDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+const app = initializeApp({ apiKey: "AIzaSyAnNzL2wSLEsy6DprleCNSq9elnv3X7BTg", authDomain: "legendsai-3e2d6.firebaseapp.com", projectId: "legendsai-3e2d6" });
+const auth = getAuth(app); const db = getFirestore(app);
+let cUser = null, cChatId = null, history = [], config = { temperature: 0.3, systemPrompt: "" };
+const toast = (m, t='info') => Toastify({text: m, duration: 3000, style: {background: t==='error'?"#ef4444":"#3b82f6", borderRadius: "12px", fontSize: "13px", fontWeight: "600"}}).showToast();
+function getRaw(b64) { return decodeURIComponent(escape(atob(b64))); }
+const renderer = new marked.Renderer();
+renderer.code = function(code, lang) {
+    const raw = typeof code === 'object' ? code.text : String(code);
+    const b64 = btoa(unescape(encodeURIComponent(raw)));
+    const isH = (lang === 'html' || raw.includes('<!doctype') || raw.includes('<html'));
+    return `<pre><code class="language-${lang}">${raw.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>
+    <div class="code-toolbar">
+        <button onclick="window.uC('${b64}')" class="code-btn btn-v2"><i class="fas fa-level-up-alt"></i> v2 Geliştir</button>
+        <button onclick="window.cC('${b64}', this)" class="code-btn"><i class="fas fa-copy"></i> Kopyala</button>
+        <button onclick="window.dwn('${b64}')" class="code-btn btn-dl"><i class="fas fa-download"></i> İndir</button>
+        ${isH ? `<button onclick="window.pC('${b64}')" class="code-btn btn-pre"><i class="fas fa-play"></i> İzle</button>` : ''}
+    </div>`;
+};
+marked.setOptions({ renderer: renderer, breaks: true });
+window.uC = (b) => { document.getElementById('userInput').value = `Geliştir ve v2 yap:\\n\\n\`\`\`\\n${getRaw(b)}\`\`\``; };
+window.cC = (b, btn) => { navigator.clipboard.writeText(getRaw(b)); btn.innerHTML = 'Kopyalandı'; setTimeout(()=>btn.innerHTML='<i class="fas fa-copy"></i> Kopyala', 2000); toast('Kopyalandı.'); };
+window.pC = (b) => { document.getElementById('previewModal').classList.add('active'); document.getElementById('pFrame').srcdoc = getRaw(b); };
+window.dwn = (b) => { const blob = new Blob([getRaw(b)], {type: "text/html"}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = "Legends.html"; a.click(); toast('İndirildi.'); };
+window.dC = async (id) => { await deleteDoc(doc(db, `users/${cUser.uid}/chats`, id)); startN(); };
+onAuthStateChanged(auth, async (u) => {
+    if(u){ cUser = u; document.getElementById('auth-screen').style.display = 'none'; document.getElementById('uName').innerText = u.email.split('@')[0].toUpperCase();
+        const d = await getDoc(doc(db, `users/${u.uid}/settings`, 'cfg')); if(d.exists()){ config = d.data(); document.getElementById('tRange').value = config.temperature; document.getElementById('sysPrompt').value = config.systemPrompt || ""; }
+        onSnapshot(query(collection(db, `users/${u.uid}/chats`), orderBy('updatedAt', 'desc')), (s) => {
+            const l = document.getElementById('historyList'); l.innerHTML = "";
+            s.forEach(d => { const div = document.createElement('div'); div.className = `p-3 mb-2 rounded-xl text-xs font-bold cursor-pointer flex justify-between ${cChatId===d.id ? 'bg-[#111] text-white border border-[#333]' : 'text-gray-500 border border-transparent'}`; div.innerHTML = `<span class="truncate">${d.data().title}</span><i class="fas fa-trash" onclick="event.stopPropagation(); window.dC('${d.id}')"></i>`; div.onclick = () => { loadC(d.id); document.getElementById('sidebar').classList.remove('open'); }; l.appendChild(div); });
+        }); startN();
+    } else { document.getElementById('auth-screen').style.display = 'flex'; }
+});
+document.getElementById('btnLogin').onclick = () => signInWithEmailAndPassword(auth, document.getElementById('authEmail').value, document.getElementById('authPass').value).catch(e => toast(e.message, 'error'));
+document.getElementById('btnRegister').onclick = () => createUserWithEmailAndPassword(auth, document.getElementById('authEmail').value, document.getElementById('authPass').value).catch(e => toast(e.message, 'error'));
+document.getElementById('btnGoogle').onclick = () => signInWithPopup(auth, new GoogleAuthProvider());
+document.getElementById('btnLogout').onclick = () => { signOut(auth); document.getElementById('settingsModal').classList.remove('active'); };
+document.getElementById('saveSet').onclick = async () => { config.systemPrompt = document.getElementById('sysPrompt').value; config.temperature = parseFloat(document.getElementById('tRange').value); await setDoc(doc(db, `users/${cUser.uid}/settings`, 'cfg'), config); toast('Kaydedildi.'); document.getElementById('settingsModal').classList.remove('active'); };
+document.getElementById('sendBtn').onclick = sM;
+document.getElementById('userInput').oninput = function(){ this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'; };
+async function startN() { cChatId = "chat_"+Date.now(); history = []; document.getElementById('chat-container').innerHTML = ''; await setDoc(doc(db, `users/${cUser.uid}/chats`, cChatId), { title: "Yeni Proje", updatedAt: serverTimestamp(), messages: [] }); }
+async function loadC(id) { cChatId = id; const d = await getDoc(doc(db, `users/${cUser.uid}/chats`, id)); if(d.exists()){ history = d.data().messages || []; rC(); } }
+async function sM() {
+    const v = document.getElementById('userInput').value.trim(); if(!v) return;
+    document.getElementById('userInput').value = ""; document.getElementById('userInput').style.height = 'auto'; addUI(v, 'user'); history.push({role: "user", content: v});
+    const d = document.createElement('div'); d.className = 'msg-ai'; d.innerHTML = `<div class="markdown-body">Yazılıyor...</div>`;
+    document.getElementById('chat-container').appendChild(d); document.getElementById('chat-container').scrollTop = document.getElementById('chat-container').scrollHeight;
+    let full = ""; const cDiv = d.querySelector('.markdown-body');
+    try {
+        const res = await fetch('/api/chat', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ messages: history, settings: config }) });
+        const r = res.body.getReader(); const dec = new TextDecoder();
+        while (true) { const { done, value } = await r.read(); if (done) break; full += dec.decode(value, {stream: true}); cDiv.innerHTML = marked.parse(full); document.getElementById('chat-container').scrollTop = document.getElementById('chat-container').scrollHeight; }
+        history.push({role: "assistant", content: full}); await updateDoc(doc(db, `users/${cUser.uid}/chats`, cChatId), { title: history[0].content.substring(0,25), messages: history, updatedAt: serverTimestamp() });
+    } catch(e) { cDiv.innerHTML = "Hata."; }
+}
+function addUI(t, r) { const d = document.createElement('div'); d.className = r==='user'?'msg-user':'msg-ai'; if(r==='user') d.innerText=t; else d.innerHTML=`<div class="markdown-body">${marked.parse(t)}</div>`; document.getElementById('chat-container').appendChild(d); document.getElementById('chat-container').scrollTop = document.getElementById('chat-container').scrollHeight; }
+function rC() { document.getElementById('chat-container').innerHTML = ""; history.forEach(m => addUI(m.content, m.role)); }
+document.getElementById('openSidebar').onclick = () => document.getElementById('sidebar').classList.add('open');
+document.getElementById('closeSidebar').onclick = () => document.getElementById('sidebar').classList.remove('open');
+document.getElementById('openSettings').onclick = () => document.getElementById('settingsModal').classList.add('active');
+document.getElementById('closeSettings').onclick = () => document.getElementById('settingsModal').classList.remove('active');
+document.getElementById('closePreview').onclick = () => document.getElementById('previewModal').classList.remove('active');
+===END===
 ===FILE: templates/index.html
 <!DOCTYPE html>
 <html lang="tr" class="dark">
 <head>
     <meta charset="UTF-8">
-    <title>Legends Pro v31.2 - Snow Edition</title>
+    <title>Legends Pro v32.0</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
-    
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=31.2">
-
-    <style>
-        /* SİBERPUNK KAR EFEKTİ */
-        .snowflake {
-            position: fixed; top: -10px; background: #3b82f6; border-radius: 50%;
-            pointer-events: none; z-index: 9999; box-shadow: 0 0 10px #3b82f6;
-            animation: fall linear infinite;
-        }
-        @keyframes fall {
-            to { transform: translateY(100vh); }
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=32.0">
 </head>
 <body>
     <div id="auth-screen" class="auth-overlay">
-        <div class="auth-card relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
-            <i class="fas fa-cube text-5xl mb-6 text-blue-500 animate-pulse"></i>
-            <h1 class="text-2xl font-black mb-2 tracking-tighter text-white">LEGENDS PRO</h1>
-            <p class="text-gray-500 text-xs mb-8 uppercase tracking-widest">Siber Kar Efekti v31.2</p>
-            <div class="space-y-3 mb-6">
-                <input type="email" id="authEmail" class="auth-input" placeholder="E-Posta Adresi">
-                <input type="password" id="authPass" class="auth-input" placeholder="Şifre">
+        <div class="auth-card">
+            <i class="fas fa-cube text-5xl mb-6 text-blue-500"></i>
+            <h1 class="text-2xl font-black mb-2 text-white">LEGENDS PRO</h1>
+            <p class="text-gray-500 text-xs mb-8">v32.0 ULTIMATE FIX</p>
+            <input type="email" id="authEmail" class="auth-input" placeholder="E-Posta">
+            <input type="password" id="authPass" class="auth-input" placeholder="Şifre">
+            <div style="display: flex; gap: 8px;">
+                <button id="btnLogin" class="btn-primary">Giriş Yap</button>
+                <button id="btnRegister" class="btn-secondary">Kayıt Ol</button>
             </div>
-            <div class="flex gap-2 mb-6">
-                <button id="btnLogin" class="btn-primary flex-1">Giriş Yap</button>
-                <button id="btnRegister" class="btn-secondary flex-1">Kayıt Ol</button>
-            </div>
-            <button id="btnGoogle" class="btn-google w-full"><i class="fab fa-google text-lg text-red-500"></i> Google ile Giriş</button>
+            <button id="btnGoogle" class="btn-google"><i class="fab fa-google text-red-500"></i> Google</button>
         </div>
     </div>
-
     <aside id="sidebar" class="sidebar">
-        <div class="sidebar-header">
-            <span class="font-black text-lg tracking-tighter text-white flex items-center gap-2"><i class="fas fa-cube text-blue-500"></i> LEGENDS</span>
-            <i class="fas fa-times md:hidden text-gray-500 hover:text-white transition p-2 cursor-pointer" id="closeSidebar"></i>
-        </div>
-        <div class="p-4">
-            <button id="newChatBtn" class="btn-new-chat w-full"><i class="fas fa-plus"></i> YENİ PROJE</button>
-        </div>
-        <div id="historyList" class="flex-1 overflow-y-auto px-4 space-y-2 py-2 custom-scrollbar"></div>
-        <div class="sidebar-footer">
-            <div class="user-badge">
-                <div class="avatar bg-white text-black">P</div>
-                <span id="uName" class="font-bold text-sm text-white truncate">Patron</span>
-            </div>
-            <i class="fas fa-cog text-gray-500 cursor-pointer hover:text-white transition p-2" id="openSettings"></i>
-        </div>
+        <div style="padding: 20px; border-bottom: 1px solid #1a1a1a; display: flex; justify-content: space-between;"><span class="font-bold text-white">LEGENDS</span><i class="fas fa-times md:hidden text-white" id="closeSidebar"></i></div>
+        <div style="padding: 16px;"><button id="newChatBtn" style="width: 100%; padding: 12px; background: #111; color: white; border-radius: 12px; font-weight: bold; border: 1px solid #333;">YENİ PROJE</button></div>
+        <div id="historyList" style="flex: 1; overflow-y: auto; padding: 0 16px;"></div>
+        <div style="padding: 20px; border-top: 1px solid #1a1a1a; display: flex; justify-content: space-between; align-items: center;"><span id="uName" class="font-bold text-sm text-white">Patron</span><i class="fas fa-cog text-white" id="openSettings"></i></div>
     </aside>
-
     <main class="main-content">
-        <header class="mobile-header md:hidden">
-            <i class="fas fa-bars text-xl text-gray-400 p-2 cursor-pointer" id="openSidebar"></i>
-            <span class="font-black tracking-widest text-sm text-white flex items-center gap-2"><i class="fas fa-cube text-blue-500"></i> LEGENDS</span>
-        </header>
-        
-        <div id="chat-container" class="chat-area custom-scrollbar">
-            <div class="h-full flex flex-col items-center justify-center opacity-10 select-none pointer-events-none">
-                <i class="fas fa-cube text-8xl mb-6 text-white"></i>
-                <p class="font-black tracking-[0.5em] text-sm text-white uppercase">V31.2 SNOW EDITION</p>
-            </div>
-        </div>
-        
+        <header class="mobile-header md:hidden"><i class="fas fa-bars text-xl mr-4 text-white" id="openSidebar"></i><span class="font-black text-white">LEGENDS</span></header>
+        <div id="chat-container" class="chat-area custom-scrollbar"><div style="display:flex; height:100%; align-items:center; justify-content:center; opacity:0.2;"><i class="fas fa-cube text-7xl text-white"></i></div></div>
         <div class="input-wrapper">
             <div class="input-box">
-                <textarea id="userInput" placeholder="Yazılım emrini ver patron..." rows="1"></textarea>
+                <textarea id="userInput" placeholder="Emir ver..."></textarea>
                 <button id="sendBtn" class="send-btn"><i class="fas fa-arrow-up"></i></button>
             </div>
         </div>
     </main>
-
     <div id="settingsModal" class="modal">
-        <div class="modal-card relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
-            <div class="flex justify-between font-black mb-8 text-lg text-white"><span>AYARLAR</span><i class="fas fa-times text-gray-500 cursor-pointer p-1 hover:text-white" id="closeSettings"></i></div>
-            <div class="space-y-6">
-                <div><label class="text-xs font-bold text-gray-500 mb-3 block uppercase flex justify-between"><span>Yaratıcılık</span><span id="tVal" class="text-blue-500">0.3</span></label><input type="range" id="tRange" min="0" max="1" step="0.1" value="0.3" class="w-full accent-blue-500 h-2 bg-[#1a1a1a] rounded-full appearance-none"></div>
-                <div class="p-4 bg-[#111]/50 rounded-2xl border border-[#222] backdrop-blur-sm"><label class="text-xs font-bold text-blue-500 block mb-3 uppercase flex items-center gap-2"><i class="fas fa-brain"></i> AI Özel Karakteri</label><textarea id="sysPrompt" class="w-full bg-black/50 border border-[#333] rounded-xl p-3 text-xs text-white outline-none resize-none focus:border-blue-500 transition" rows="4" placeholder="AI nasıl davransın?"></textarea><button id="saveSet" class="w-full mt-3 p-3 bg-blue-600/20 text-blue-500 rounded-xl text-xs font-bold hover:bg-blue-600 hover:text-white transition">KAYDET</button></div>
-                <button id="btnLogout" class="w-full p-4 border border-red-900/50 text-red-500 rounded-2xl text-xs font-black hover:bg-red-950/30 transition">OTURUMU KAPAT</button>
-            </div>
+        <div class="modal-card">
+            <div style="display:flex; justify-content:space-between; margin-bottom:20px;"><span class="font-bold text-white">AYARLAR</span><i class="fas fa-times text-white" id="closeSettings"></i></div>
+            <label style="font-size:12px; color:#888;">Yaratıcılık</label><input type="range" id="tRange" min="0" max="1" step="0.1" value="0.3" style="width:100%; margin-bottom:20px;">
+            <label style="font-size:12px; color:#888;">AI Karakteri</label><textarea id="sysPrompt" style="width:100%; background:#000; color:#fff; border:1px solid #333; padding:10px; border-radius:12px; margin-bottom:10px;"></textarea>
+            <button id="saveSet" style="width:100%; padding:12px; background:#111; color:white; border-radius:12px; margin-bottom:10px;">Kaydet</button>
+            <button id="btnLogout" style="width:100%; padding:12px; background:none; color:red; border:1px solid red; border-radius:12px;">Çıkış Yap</button>
         </div>
     </div>
-
     <div id="previewModal" class="modal">
-        <div class="modal-card w-full h-full md:h-[95vh] md:w-[98%] max-w-none flex flex-col p-0 overflow-hidden">
-            <div class="p-4 border-b border-[#222] flex justify-between items-center bg-[#0a0a0a]">
-                <div class="flex items-center gap-3"><div class="flex gap-1.5"><div class="w-3 h-3 rounded-full bg-red-500/50"></div><div class="w-3 h-3 rounded-full bg-yellow-500/50"></div><div class="w-3 h-3 rounded-full bg-green-500/50"></div></div><span class="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-4">CANLI ÖNİZLEME</span></div>
-                <i class="fas fa-times text-xl text-gray-500 cursor-pointer p-2 hover:text-white transition" id="closePreview"></i>
-            </div>
-            <iframe id="pFrame" class="flex-1 bg-white" sandbox="allow-scripts allow-forms allow-modals"></iframe>
+        <div style="background: black; border: 1px solid #222; width: 100%; height: 95vh; border-radius: 24px; display: flex; flex-direction: column;">
+            <div style="padding: 16px; border-bottom: 1px solid #222; display: flex; justify-content: space-between;"><span style="color:#888; font-size:12px; font-weight:bold;">ÖNİZLEME</span><i class="fas fa-times text-white" id="closePreview"></i></div>
+            <iframe id="pFrame" style="flex:1; background:white; border:none; border-bottom-left-radius: 24px; border-bottom-right-radius: 24px;" sandbox="allow-scripts allow-forms allow-modals"></iframe>
         </div>
     </div>
-
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
-    
-    <script>
-        function createSnowflake() {
-            const snow = document.createElement('div');
-            snow.classList.add('snowflake');
-            snow.style.left = Math.random() * 100 + 'vw';
-            snow.style.animationDuration = Math.random() * 3 + 2 + 's';
-            snow.style.opacity = Math.random();
-            const size = Math.random() * 4 + 2 + 'px';
-            snow.style.width = size; snow.style.height = size;
-            document.body.appendChild(snow);
-            setTimeout(() => { snow.remove(); }, 5000);
-        }
-        setInterval(createSnowflake, 150);
-    </script>
-
-    <script type="module" src="{{ url_for('static', filename='script.js') }}?v=31.2"></script>
+    <script type="module" src="{{ url_for('static', filename='script.js') }}?v=32.0"></script>
 </body>
 </html>
 ===END===
