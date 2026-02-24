@@ -1,4 +1,3 @@
-cat << 'EOF' > dashboard.py
 from flask import Flask, render_template, request, jsonify, Response, stream_with_context
 import os, requests, json
 
@@ -17,7 +16,6 @@ DEFAULT_PROMPT = "Sen Legends Master Pro'sun. Şenol Kocabıyık'ın Baş Mimar�
 
 @app.route('/')
 def index():
-    # Artık HTML'i dışarıdan (templates klasöründen) çekiyor
     return render_template('index.html')
 
 @app.route('/api/chat', methods=['POST'])
@@ -29,7 +27,8 @@ def chat():
     temp = float(data.get('settings', {}).get('temperature', 0.3))
 
     def generate():
-        key_idx = 0; attempts = 0
+        key_idx = 0
+        attempts = 0
         while attempts < len(API_KEYS):
             try:
                 with requests.post("https://api.groq.com/openai/v1/chat/completions", headers={"Authorization": f"Bearer {API_KEYS[key_idx]}", "Content-Type": "application/json"}, json={"model": MODEL, "messages": full_messages, "temperature": temp, "max_tokens": 6000, "stream": True}, stream=True, timeout=25) as resp:
@@ -38,15 +37,20 @@ def chat():
                             if line:
                                 dec = line.decode('utf-8').replace('data: ', '')
                                 if dec != '[DONE]':
-                                    try: content = json.loads(dec)['choices'][0]['delta'].get('content'); if content: yield content
-                                    except: pass
+                                    try:
+                                        content = json.loads(dec)['choices'][0]['delta'].get('content')
+                                        if content:
+                                            yield content
+                                    except:
+                                        pass
                         return
-                    else: raise Exception("API Error")
-            except Exception: key_idx = (key_idx + 1) % len(API_KEYS); attempts += 1
+                    else:
+                        raise Exception("API Error")
+            except Exception:
+                key_idx = (key_idx + 1) % len(API_KEYS)
+                attempts += 1
         yield "❌ Sunucu yoğun patron."
     return Response(stream_with_context(generate()), mimetype='text/plain')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
-EOF
-
