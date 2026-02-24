@@ -1,3 +1,4 @@
+===FILE: templates/index.html
 <!DOCTYPE html>
 <html lang="tr" class="dark">
 <head>
@@ -123,3 +124,5 @@
     <script type="module" src="{{ url_for('static', filename='script.js') }}?v=31.2"></script>
 </body>
 </html>
+===END===
+
