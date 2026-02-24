@@ -11,7 +11,7 @@ API_KEYS = [
     "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"
 ]
 MODEL = "llama-3.3-70b-versatile"
-DEFAULT_PROMPT = "Sen Legends Master Pro v28.1'sin. Şenol Kocabıyık'ın baş mimarısın. Her dilde mükemmel kod yaz. v1/v2 mantığıyla çalış. Profesyonel ve siberpunk ol."
+DEFAULT_PROMPT = "Sen Legends Master Pro v28.2'sin. Şenol Kocabıyık'ın baş mimarısın. Mükemmel kod yaz. v1/v2 mantığıyla çalış."
 
 @app.route('/')
 def index(): return render_template_string(HTML_TEMPLATE)
@@ -55,8 +55,8 @@ def chat():
 HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="tr" class="dark">
 <head>
-    <meta charset="UTF-8"><title>Legends Pro v28.1</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta charset="UTF-8"><title>Legends Pro v28.2</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -64,7 +64,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
     <style>
         body { background: #000; color: #fff; display: flex; height: 100dvh; overflow: hidden; font-family: sans-serif; }
-        .sidebar { width: 300px; background: #050505; border-right: 1px solid #1a1a1a; display: flex; flex-direction: column; transition: 0.3s; }
+        .sidebar { width: 280px; background: #050505; border-right: 1px solid #1a1a1a; display: flex; flex-direction: column; transition: 0.3s; }
         #chat-container { flex: 1; overflow-y: auto; padding: 20px; }
         .msg-user { background: #3b82f6; border-radius: 16px 16px 4px 16px; padding: 12px 16px; margin: 8px 0 8px auto; max-width: 85%; font-size: 14px; }
         .msg-ai { padding: 20px 0; border-bottom: 1px solid #111; display: flex; gap: 12px; }
@@ -96,7 +96,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
     <main class="flex-1 flex flex-col relative">
         <header class="p-4 border-b border-[#222] md:hidden flex items-center"><i class="fas fa-bars mr-4" id="openSidebar"></i><span class="font-bold">LEGENDS</span></header>
-        <div id="chat-container"><div class="h-full flex flex-col items-center justify-center pt-32 opacity-20"><i class="fas fa-cube text-7xl mb-4"></i><p class="font-black tracking-widest">V28.1 ARCHITECT</p></div></div>
+        <div id="chat-container"><div class="h-full flex flex-col items-center justify-center pt-32 opacity-20"><i class="fas fa-cube text-7xl mb-4"></i><p class="font-black tracking-widest">V28.2 ARCHITECT</p></div></div>
         <div class="p-4 bg-gradient-to-t from-black to-transparent">
             <div class="max-w-4xl mx-auto bg-[#111] border border-[#333] rounded-2xl p-2 flex items-end gap-2">
                 <textarea id="userInput" class="flex-1 bg-transparent border-none text-white py-3 px-2 text-sm outline-none resize-none max-h-[150px]" placeholder="Emir ver..." rows="1"></textarea>
@@ -186,3 +186,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     </script>
 </body>
 </html>
+"""
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+
