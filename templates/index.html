@@ -1,0 +1,99 @@
+cat << 'EOF' > templates/index.html
+<!DOCTYPE html>
+<html lang="tr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <title>Legends Pro v31 - The Foundation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div id="auth-screen" class="auth-overlay">
+        <div class="auth-card relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+            <i class="fas fa-cube text-5xl mb-6 text-blue-500"></i>
+            <h1 class="text-2xl font-black mb-2 tracking-tighter text-white">LEGENDS PRO</h1>
+            <p class="text-gray-500 text-xs mb-8 uppercase tracking-widest">Profesyonel Mimari v31</p>
+            <div class="space-y-3 mb-6">
+                <input type="email" id="authEmail" class="auth-input" placeholder="E-Posta Adresi">
+                <input type="password" id="authPass" class="auth-input" placeholder="Şifre">
+            </div>
+            <div class="flex gap-2 mb-6">
+                <button id="btnLogin" class="btn-primary flex-1">Giriş Yap</button>
+                <button id="btnRegister" class="btn-secondary flex-1">Kayıt Ol</button>
+            </div>
+            <button id="btnGoogle" class="btn-google w-full"><i class="fab fa-google text-lg text-red-500"></i> Google ile Giriş</button>
+        </div>
+    </div>
+
+    <aside id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <span class="font-black text-lg tracking-tighter text-white flex items-center gap-2"><i class="fas fa-cube text-blue-500"></i> LEGENDS</span>
+            <i class="fas fa-times md:hidden text-gray-500 hover:text-white transition p-2 cursor-pointer" id="closeSidebar"></i>
+        </div>
+        <div class="p-4">
+            <button id="newChatBtn" class="btn-new-chat w-full"><i class="fas fa-plus"></i> YENİ PROJE</button>
+        </div>
+        <div id="historyList" class="flex-1 overflow-y-auto px-4 space-y-2 py-2 custom-scrollbar"></div>
+        <div class="sidebar-footer">
+            <div class="user-badge">
+                <div class="avatar bg-white text-black">P</div>
+                <span id="uName" class="font-bold text-sm text-white truncate">Patron</span>
+            </div>
+            <i class="fas fa-cog text-gray-500 cursor-pointer hover:text-white transition p-2" id="openSettings"></i>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="mobile-header md:hidden">
+            <i class="fas fa-bars text-xl text-gray-400 p-2 cursor-pointer" id="openSidebar"></i>
+            <span class="font-black tracking-widest text-sm text-white flex items-center gap-2"><i class="fas fa-cube text-blue-500"></i> LEGENDS</span>
+        </header>
+        
+        <div id="chat-container" class="chat-area custom-scrollbar">
+            <div class="h-full flex flex-col items-center justify-center opacity-10 select-none pointer-events-none">
+                <i class="fas fa-cube text-8xl mb-6 text-white"></i>
+                <p class="font-black tracking-[0.5em] text-sm text-white uppercase">V31.0 FOUNDATION</p>
+            </div>
+        </div>
+        
+        <div class="input-wrapper">
+            <div class="input-box">
+                <textarea id="userInput" placeholder="Yazılım emrini ver patron..." rows="1"></textarea>
+                <button id="sendBtn" class="send-btn"><i class="fas fa-arrow-up"></i></button>
+            </div>
+        </div>
+    </main>
+
+    <div id="settingsModal" class="modal">
+        <div class="modal-card relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+            <div class="flex justify-between font-black mb-8 text-lg text-white"><span>AYARLAR</span><i class="fas fa-times text-gray-500 cursor-pointer p-1 hover:text-white" id="closeSettings"></i></div>
+            <div class="space-y-6">
+                <div><label class="text-xs font-bold text-gray-500 mb-3 block uppercase flex justify-between"><span>Yaratıcılık</span><span id="tVal" class="text-blue-500">0.3</span></label><input type="range" id="tRange" min="0" max="1" step="0.1" value="0.3" class="w-full accent-blue-500 h-2 bg-[#1a1a1a] rounded-full appearance-none"></div>
+                <div class="p-4 bg-[#111]/50 rounded-2xl border border-[#222] backdrop-blur-sm"><label class="text-xs font-bold text-blue-500 block mb-3 uppercase flex items-center gap-2"><i class="fas fa-brain"></i> AI Özel Karakteri</label><textarea id="sysPrompt" class="w-full bg-black/50 border border-[#333] rounded-xl p-3 text-xs text-white outline-none resize-none focus:border-blue-500 transition" rows="4" placeholder="AI nasıl davransın?"></textarea><button id="saveSet" class="w-full mt-3 p-3 bg-blue-600/20 text-blue-500 rounded-xl text-xs font-bold hover:bg-blue-600 hover:text-white transition">KAYDET</button></div>
+                <button id="btnLogout" class="w-full p-4 border border-red-900/50 text-red-500 rounded-2xl text-xs font-black hover:bg-red-950/30 transition">OTURUMU KAPAT</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="previewModal" class="modal">
+        <div class="modal-card w-full h-full md:h-[95vh] md:w-[98%] max-w-none flex flex-col p-0 overflow-hidden">
+            <div class="p-4 border-b border-[#222] flex justify-between items-center bg-[#0a0a0a]">
+                <div class="flex items-center gap-3"><div class="flex gap-1.5"><div class="w-3 h-3 rounded-full bg-red-500/50"></div><div class="w-3 h-3 rounded-full bg-yellow-500/50"></div><div class="w-3 h-3 rounded-full bg-green-500/50"></div></div><span class="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-4">CANLI ÖNİZLEME</span></div>
+                <i class="fas fa-times text-xl text-gray-500 cursor-pointer p-2 hover:text-white transition" id="closePreview"></i>
+            </div>
+            <iframe id="pFrame" class="flex-1 bg-white" sandbox="allow-scripts allow-forms allow-modals"></iframe>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <script type="module" src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
+EOF
+
