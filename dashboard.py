@@ -11,7 +11,7 @@ API_KEYS = [
     "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"
 ]
 MODEL = "llama-3.3-70b-versatile"
-DEFAULT_PROMPT = "Sen Legends Master Pro v28.2'sin. Şenol Kocabıyık'ın baş mimarısın. Mükemmel kod yaz. v1/v2 mantığıyla çalış."
+DEFAULT_PROMPT = "Sen Legends Master Pro v28.3'sün. Şenol Kocabıyık'ın baş mimarısın. Her dilde mükemmel kod yaz. v1/v2 mantığıyla çalış. Profesyonel ve siberpunk ol."
 
 @app.route('/')
 def index(): return render_template_string(HTML_TEMPLATE)
@@ -55,7 +55,7 @@ def chat():
 HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="tr" class="dark">
 <head>
-    <meta charset="UTF-8"><title>Legends Pro v28.2</title>
+    <meta charset="UTF-8"><title>Legends Pro v28.3</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -81,9 +81,23 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 </head>
 <body>
     <div id="auth-screen" class="fixed inset-0 z-50 bg-black flex items-center justify-center p-6">
-        <div class="bg-[#0a0a0a] border border-[#222] p-10 rounded-3xl w-full max-w-sm text-center">
-            <i class="fas fa-cube text-5xl mb-6"></i><h1 class="text-2xl font-black mb-8">LEGENDS PRO</h1>
-            <button id="btnGoogle" class="w-full p-4 bg-white text-black rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-gray-200"><i class="fab fa-google"></i> Google Giriş</button>
+        <div class="bg-[#0a0a0a] border border-[#222] p-10 rounded-3xl w-full max-w-sm text-center shadow-2xl relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+            <i class="fas fa-cube text-5xl mb-6 text-white"></i><h1 class="text-2xl font-black mb-8">LEGENDS PRO</h1>
+            
+            <div class="space-y-4 mb-6">
+                <input type="email" id="authEmail" class="w-full p-4 rounded-xl bg-[#111] border border-[#333] text-sm focus:border-blue-500 outline-none transition" placeholder="E-Posta Adresi">
+                <input type="password" id="authPass" class="w-full p-4 rounded-xl bg-[#111] border border-[#333] text-sm focus:border-blue-500 outline-none transition" placeholder="Şifre Oluştur / Gir">
+            </div>
+            
+            <div class="flex gap-3 mb-6">
+                <button id="btnLogin" class="flex-1 p-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-600/20 text-sm">Giriş Yap</button>
+                <button id="btnRegister" class="flex-1 p-4 bg-[#222] text-white rounded-xl font-bold hover:bg-[#333] transition border border-[#444] text-sm">Kayıt Ol</button>
+            </div>
+            
+            <div class="flex items-center gap-4 opacity-30 mb-6"><hr class="flex-1"><span>VEYA</span><hr class="flex-1"></div>
+            
+            <button id="btnGoogle" class="w-full p-4 bg-white text-black rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-gray-200 transition text-sm"><img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" class="w-4 h-4"> Gmail ile Giriş Yap</button>
         </div>
     </div>
 
@@ -96,7 +110,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
     <main class="flex-1 flex flex-col relative">
         <header class="p-4 border-b border-[#222] md:hidden flex items-center"><i class="fas fa-bars mr-4" id="openSidebar"></i><span class="font-bold">LEGENDS</span></header>
-        <div id="chat-container"><div class="h-full flex flex-col items-center justify-center pt-32 opacity-20"><i class="fas fa-cube text-7xl mb-4"></i><p class="font-black tracking-widest">V28.2 ARCHITECT</p></div></div>
+        <div id="chat-container"><div class="h-full flex flex-col items-center justify-center pt-32 opacity-20"><i class="fas fa-cube text-7xl mb-4"></i><p class="font-black tracking-widest">V28.3 ARCHITECT</p></div></div>
         <div class="p-4 bg-gradient-to-t from-black to-transparent">
             <div class="max-w-4xl mx-auto bg-[#111] border border-[#333] rounded-2xl p-2 flex items-end gap-2">
                 <textarea id="userInput" class="flex-1 bg-transparent border-none text-white py-3 px-2 text-sm outline-none resize-none max-h-[150px]" placeholder="Emir ver..." rows="1"></textarea>
@@ -110,8 +124,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             <div class="flex justify-between font-bold mb-6"><span>AYARLAR</span><i class="fas fa-times cursor-pointer" id="closeSettings"></i></div>
             <div class="space-y-6">
                 <div><label class="text-xs font-bold text-gray-500 mb-2 block">Yaratıcılık (<span id="tVal">0.2</span>)</label><input type="range" id="tRange" min="0" max="1" step="0.1" value="0.2" class="w-full accent-blue-500 h-1 bg-[#222] rounded-full appearance-none"></div>
-                <div class="p-4 bg-[#111] rounded-xl border border-[#222]"><label class="text-xs font-bold text-blue-500 block mb-2"><i class="fas fa-brain"></i> AI Eğitimi</label><textarea id="sysPrompt" class="w-full bg-black border border-[#333] rounded-lg p-2 text-xs text-white outline-none" rows="4" placeholder="Karakter belirle..."></textarea><button id="saveSet" class="w-full mt-2 p-2 bg-[#222] rounded-lg text-xs font-bold hover:bg-[#333]">Kaydet</button></div>
-                <button id="btnLogout" class="w-full p-3 border border-red-900 text-red-500 rounded-xl text-xs font-bold">ÇIKIŞ YAP</button>
+                <div class="p-4 bg-[#111] rounded-xl border border-[#222]"><label class="text-xs font-bold text-blue-500 block mb-2"><i class="fas fa-brain"></i> AI Eğitimi (Prompt)</label><textarea id="sysPrompt" class="w-full bg-black border border-[#333] rounded-lg p-2 text-xs text-white outline-none" rows="4" placeholder="Karakter belirle..."></textarea><button id="saveSet" class="w-full mt-2 p-2 bg-[#222] rounded-lg text-xs font-bold hover:bg-[#333]">Kaydet</button></div>
+                <button id="btnLogout" class="w-full p-3 border border-red-900 text-red-500 rounded-xl text-xs font-bold hover:bg-red-950/40">ÇIKIŞ YAP</button>
             </div>
         </div>
     </div>
@@ -120,12 +134,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        // createUserWithEmailAndPassword EKLENDİ!
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        
         const app = initializeApp({ apiKey: "AIzaSyAnNzL2wSLEsy6DprleCNSq9elnv3X7BTg", authDomain: "legendsai-3e2d6.firebaseapp.com", projectId: "legendsai-3e2d6" });
         const auth = getAuth(app); const db = getFirestore(app);
         let cUser = null, cChatId = null, history = [], config = { temperature: 0.2, systemPrompt: "" };
-        const toast = (m) => Toastify({text: m, duration: 2000, style: {background: "#3b82f6", borderRadius: "8px", fontSize: "12px", fontWeight: "bold"}}).showToast();
+        const toast = (m, type='info') => Toastify({text: m, duration: 3000, style: {background: type==='error'?"#ef4444":"#3b82f6", borderRadius: "8px", fontSize: "12px", fontWeight: "bold"}}).showToast();
 
         const renderer = new marked.Renderer();
         renderer.code = function(code, lang) {
@@ -139,6 +155,18 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         window.cC = (c, b) => { navigator.clipboard.writeText(c); b.innerText = 'OK'; setTimeout(()=>b.innerText='KOPYALA', 2000); toast('Kopyalandı.'); };
         window.pC = (c) => { document.getElementById('previewModal').classList.add('active'); document.getElementById('pFrame').srcdoc = c; };
 
+        // FIREBASE GİRİŞ VE KAYIT SİSTEMİ BÖLÜMÜ
+        document.getElementById('btnLogin').onclick = () => {
+            signInWithEmailAndPassword(auth, document.getElementById('authEmail').value, document.getElementById('authPass').value).catch(e => toast("Hata: " + e.message, 'error'));
+        };
+        document.getElementById('btnRegister').onclick = () => {
+            createUserWithEmailAndPassword(auth, document.getElementById('authEmail').value, document.getElementById('authPass').value)
+                .then(() => toast('Kayıt başarılı! Hoş geldin.'))
+                .catch(e => toast("Hata: " + e.message, 'error'));
+        };
+        document.getElementById('btnGoogle').onclick = () => signInWithPopup(auth, new GoogleAuthProvider()).catch(e => toast(e.message, 'error'));
+        document.getElementById('btnLogout').onclick = () => { signOut(auth); document.getElementById('settingsModal').classList.remove('active'); };
+
         onAuthStateChanged(auth, async (u) => {
             if(u){ cUser = u; document.getElementById('auth-screen').style.display = 'none'; document.getElementById('uName').innerText = u.email.split('@')[0];
                 const d = await getDoc(doc(db, `users/${u.uid}/settings`, 'cfg')); if(d.exists()){ config = d.data(); document.getElementById('tRange').value = config.temperature; document.getElementById('sysPrompt').value = config.systemPrompt || ""; }
@@ -149,8 +177,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             } else { document.getElementById('auth-screen').style.display = 'flex'; }
         });
 
-        document.getElementById('btnGoogle').onclick = () => signInWithPopup(auth, new GoogleAuthProvider());
-        document.getElementById('btnLogout').onclick = () => signOut(auth);
         document.getElementById('saveSet').onclick = async () => { config.systemPrompt = document.getElementById('sysPrompt').value; await setDoc(doc(db, `users/${cUser.uid}/settings`, 'cfg'), config); toast('Kaydedildi.'); };
 
         async function startN() { cChatId = "chat_"+Date.now(); history = []; document.getElementById('chat-container').innerHTML = ''; await setDoc(doc(db, `users/${cUser.uid}/chats`, cChatId), { title: "Yeni Proje", updatedAt: serverTimestamp(), messages: [] }); }
